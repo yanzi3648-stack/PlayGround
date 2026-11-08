@@ -133,3 +133,70 @@ function selectLocation(loc){state.selected=loc;$('#selected-text').textContent=
 function populatePlaces(){const list=$('#place-list');list.innerHTML=locations.map(l=>`<button class="place-item" data-id="${l.id}"><span class="place-emoji">${l.emoji}</span><span class="place-meta"><strong>${l.name}</strong><small>${l.type} · ${l.hours}</small></span><span class="place-arrow">›</span></button>`).join('');list.querySelectorAll('.place-item').forEach(el=>el.addEventListener('click',()=>travelTo(locations.find(l=>l.id===el.dataset.id))));}
 function travelTo(loc){selectLocation(loc);state.target=new THREE.Vector3(loc.x,0,loc.z+3.1);toast(`Heading to ${loc.name}…`);playTone(460,.1);}
 populatePlaces();
+
+// A small, forgiving life sim loop: one real second advances one game minute.
+const saved=(()=>{try{return JSON.parse(localStorage.getItem('little-days-save')||'null')}catch{return null}})();
+if(saved){Object.assign(state,{money:saved.money??state.money,xp:saved.xp??0,level:saved.level??1,job:saved.job??null,jobLoc:saved.jobLoc??null,jobPay:saved.jobPay??null,day:saved.day??1,time:saved.time??480,goalDone:saved.goalDone??false});if(saved.needs)Object.assign(state.needs,saved.needs)}
+let saveTimer=0;
+function saveGame(){try{localStorage.setItem('little-days-save',JSON.stringify({money:state.money,xp:state.xp,level:state.level,job:state.job,jobLoc:state.jobLoc,jobPay:state.jobPay,day:state.day,time:state.time,goalDone:state.goalDone,needs:state.needs}))}catch{}}
+function openModal(html){$('#modal').innerHTML=html;$('#modal-backdrop').classList.add('open');$('#modal').querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',closeModal));}
+function closeModal(){$('#modal-backdrop').classList.remove('open')}
+function getJobOffer(loc){
+ const offers=loc.id==='cafe'?[['Barista','A warm cup and a friendly smile.','$42 / shift',42],['Café helper','Keep the little café humming.','$34 / shift',34]]:[['Design assistant','Make lovely things for the neighborhood.','$56 / shift',56],['Printmaker','Turn good ideas into paper goods.','$48 / shift',48]];
+ openModal(`<button class="close-modal" data-close>×</button><div class="modal-top"><div class="modal-emoji">${loc.emoji}</div><div><span class="eyebrow">A FRESH START</span><h2>Work at ${loc.name}</h2></div></div><p class="modal-description">${loc.description}<br><br>Pick a little role to get started. A shift takes a few hours of in-game time.</p><div class="job-options">${offers.map((o,i)=>`<button class="job-option" data-job="${i}"><span><b>${o[0]}</b><small>${o[1]}</small></span><strong>${o[2]}</strong></button>`).join('')}</div><button class="secondary-button" data-close>Maybe later</button>`);
+ $('#modal').querySelectorAll('[data-job]').forEach((btn,i)=>btn.addEventListener('click',()=>{const offer=offers[i];state.job=offer[0];state.jobLoc=loc.id;state.jobPay=offer[3];state.goalDone=true;addXP(20);toast(`You're hired as a ${offer[0]}! ✨`);closeModal();renderUI();saveGame();playTone(660,.22)}));
+}
+function openPlace(loc){
+ const work=loc.id==='cafe'||loc.id==='studio';
+ const action=loc.id==='park'?'Take a breather':loc.id==='home'?'Make a home-cooked meal':'Work a shift';
+ openModal(`<button class="close-modal" data-close>×</button><div class="modal-top"><div class="modal-emoji">${loc.emoji}</div><div><span class="eyebrow">${loc.type.toUpperCase()}</span><h2>${loc.name}</h2></div></div><p class="modal-description">${loc.description}</p><div class="modal-facts"><span class="fact-chip">${loc.hours}</span><span class="fact-chip">${work?(state.job?`$${state.jobPay||loc.pay} per shift`:'Jobs available'):'A little reset for your needs'}</span></div>${work&&!state.job?`<button class="primary-button" id="modal-action">${loc.action}</button>`:work?`<button class="primary-button" id="modal-action">${state.jobLoc===loc.id?'Start a shift':'Look for another job'}</button>`:`<button class="primary-button" id="modal-action">${action}</button>`}<button class="secondary-button" data-close>Not right now</button>`);
+ $('#modal-action').addEventListener('click',()=>{
+  if(work&&!state.job){getJobOffer(loc);return}
+  if(work&&state.jobLoc!==loc.id){getJobOffer(loc);return}
+  closeModal();
+  if(work){doShift(loc);return}
+  const boosts=loc.id==='park'?{energy:9,social:24,fun:15,hunger:-5,hygiene:-2}:loc.id==='home'?{hunger:38,energy:12,hygiene:5,social:-2,fun:5}:{energy:15};
+  Object.entries(boosts).forEach(([id,n])=>setNeed(id,n));advanceTime(loc.id==='home'?35:20);addXP(8);toast(loc.id==='park'?'A breath of fresh air. +social, +fun':'That hit the spot. Needs restored ✨');playTone(523,.16);saveGame();
+ });
+}
+function doShift(loc){
+ const hour=Math.floor(state.time/60);
+ if(hour<9||hour>=18){toast('Shifts run during the day. Come back between 9am and 6pm.');return}
+ const earned=state.jobPay||loc.pay;state.money+=earned;
+ setNeed('energy',-20);setNeed('hunger',-13);setNeed('fun',-5);advanceTime(180);addXP(28);toast(`Shift complete! +$${earned} and +28 XP`);playTone(587,.16);saveGame();
+}
+$('#modal-backdrop').addEventListener('click',e=>{if(e.target===$('#modal-backdrop'))closeModal()});
+window.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();$('#map-overlay')?.classList.remove('open');$('#help-popover').classList.remove('open')}});
+$('#help-toggle').addEventListener('click',()=>$('#help-popover').classList.toggle('open'));
+$('#close-help').addEventListener('click',()=>$('#help-popover').classList.remove('open'));
+$('#got-it').addEventListener('click',()=>$('#help-popover').classList.remove('open'));
+$('#wallet-info').addEventListener('click',()=>toast(`You have $${state.money} in your pocket. Work a shift to earn more!`));
+$('#speed-button').addEventListener('click',()=>{state.speed=state.speed===1?2:state.speed===2?4:1;$('#speed-button small').textContent=`${state.speed}×`;toast(`Time speed ${state.speed}×`)});
+// A simple clickable neighborhood map complements walking and the touch stick.
+const map=document.createElement('div');map.id='map-overlay';map.className='map-overlay';map.innerHTML=`<div class="map-panel"><div class="map-panel-head"><div><span class="eyebrow">MAPLEWOOD</span><h3>Pick your next stop</h3></div><button class="map-close" aria-label="Close map">×</button></div><div class="mini-map"><div class="mini-road"></div><div class="mini-road second"></div><div class="map-marks"></div><div class="map-mark player" title="You" style="left:50%;top:48%"></div></div><div class="map-caption"><span>Four little places to explore</span><span>Tap a marker to travel ↗</span></div></div>`;document.querySelector('.game-shell').append(map);
+map.querySelector('.map-close').addEventListener('click',()=>map.classList.remove('open'));
+map.querySelector('.map-marks').innerHTML=locations.map(l=>`<button class="map-mark" data-id="${l.id}" title="${l.name}">${l.emoji}</button>`).join('');
+map.querySelectorAll('.map-mark[data-id]').forEach((b,i)=>{const positions=[['14%','18%'],['74%','16%'],['15%','68%'],['76%','70%']][i];b.style.left=positions[0];b.style.top=positions[1];b.addEventListener('click',()=>{travelTo(locations.find(l=>l.id===b.dataset.id));map.classList.remove('open')})});
+function toggleMap(){map.classList.toggle('open')}
+$('#map-button').addEventListener('click',toggleMap);$('#map-toggle').addEventListener('click',toggleMap);
+const keys=new Set();window.addEventListener('keydown',e=>{if(['w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){keys.add(e.key.toLowerCase());e.preventDefault()}});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>keys.clear());
+const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();let downPoint=null;
+renderer.domElement.addEventListener('pointerdown',e=>{downPoint={x:e.clientX,y:e.clientY}});
+renderer.domElement.addEventListener('pointerup',e=>{if(!downPoint||Math.hypot(e.clientX-downPoint.x,e.clientY-downPoint.y)>8){downPoint=null;return}downPoint=null;pointer.x=e.clientX/innerWidth*2-1;pointer.y=-(e.clientY/innerHeight)*2+1;raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(clickable,false)[0];if(hit)travelTo(hit.object.userData.location)});
+const stick=$('#joystick');let stickVector={x:0,y:0};stick.addEventListener('pointerdown',e=>{stick.setPointerCapture(e.pointerId);moveStick(e)});stick.addEventListener('pointermove',e=>{if(e.buttons)moveStick(e)});stick.addEventListener('pointerup',()=>{stickVector={x:0,y:0};stick.firstElementChild.style.transform='translate(0,0)'});function moveStick(e){const r=stick.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),len=Math.hypot(dx,dy),max=18,k=Math.min(1,max/(len||1));stickVector={x:dx*k/max,y:dy*k/max};stick.firstElementChild.style.transform=`translate(${dx*k}px,${dy*k}px)`}
+const clock=new THREE.Clock();let elapsed=0,walkPhase=0;
+function resize(){const w=world.clientWidth,h=world.clientHeight,aspect=w/h,frustum=17;camera.left=-frustum*aspect/2;camera.right=frustum*aspect/2;camera.top=frustum/2;camera.bottom=-frustum/2;camera.updateProjectionMatrix();renderer.setSize(w,h)}
+window.addEventListener('resize',resize);resize();
+function updateNeeds(minutes){setNeed('hunger',-minutes*.007);setNeed('energy',-minutes*.004);setNeed('social',-minutes*.0026);setNeed('fun',-minutes*.0024);setNeed('hygiene',-minutes*.0018)}
+function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.05);elapsed+=dt*state.speed;walkPhase+=dt*9;
+ // Keep the little wanderer in view, especially on narrow phone screens.
+ const desiredX=player.position.x+17,desiredY=22,desiredZ=player.position.z+18;camera.position.x=THREE.MathUtils.lerp(camera.position.x,desiredX,dt*2.2);camera.position.z=THREE.MathUtils.lerp(camera.position.z,desiredZ,dt*2.2);camera.lookAt(player.position.x,0,player.position.z);
+ const input=new THREE.Vector3((keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0)+stickVector.x,0,(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0)+stickVector.y);
+ if(input.lengthSq()>1)input.normalize();const moving=input.lengthSq()>.01;
+ if(moving){state.target=null;player.position.addScaledVector(input,dt*5.2);player.position.x=THREE.MathUtils.clamp(player.position.x,-20,20);player.position.z=THREE.MathUtils.clamp(player.position.z,-19,19);player.rotation.y=Math.atan2(input.x,input.z);legs[0].rotation.x=Math.sin(walkPhase)*.55;legs[1].rotation.x=-legs[0].rotation.x;body.position.y=.95+Math.abs(Math.sin(walkPhase*2))*.05}
+ else {legs.forEach(l=>l.rotation.x*=.8);body.position.y=THREE.MathUtils.lerp(body.position.y,.95,.15)}
+ if(state.target){const d=state.target.clone().sub(player.position);d.y=0;if(d.length()<.28){state.target=null;const l=state.selected;if(l){openPlace(l);state.selected=null}}else{d.normalize();player.position.addScaledVector(d,dt*4.5);player.rotation.y=Math.atan2(d.x,d.z);legs[0].rotation.x=Math.sin(walkPhase)*.48;legs[1].rotation.x=-legs[0].rotation.x}}
+ locations.forEach((l,i)=>{l.marker.position.y=4.85+Math.sin(elapsed*2+i)*.12;l.marker.rotation.y=Math.sin(elapsed+i)*.12;l.pad.material.opacity=.8+Math.sin(elapsed*2+i)*.2});
+ if(elapsed>=1){const mins=Math.floor(elapsed);elapsed-=mins;advanceTime(mins);updateNeeds(mins);saveTimer+=mins;if(saveTimer>=2){saveGame();saveTimer=0}}
+ renderer.render(scene,camera)}
+renderUI();frame();
