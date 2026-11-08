@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#e9f0e2" />
+  <title>Little Days — City Life Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body>
+  <main class="game-shell">
+    <div id="world" aria-label="Isometric city game world"></div>
+    <div class="world-vignette"></div>
+
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Little Days home"><span class="brand-mark">✳</span><span>little<span class="brand-light">days</span></span></a>
+      <div class="day-pill"><span class="sun-icon" id="weather-icon">☀</span><span id="day-label">MONDAY · DAY 1</span><span class="pill-divider"></span><span id="clock">08:00 AM</span></div>
+      <div class="top-actions"><button class="icon-button sound-toggle" id="sound-toggle" title="Toggle sound" aria-label="Toggle sound">♫</button><button class="icon-button help-toggle" id="help-toggle" title="How to play" aria-label="How to play">?</button></div>
+    </header>
+
+    <aside class="left-rail">
+      <section class="profile-card glass-card">
+        <div class="profile-top"><div class="avatar" id="avatar">🌱</div><div><div class="eyebrow">YOUR LITTLE LIFE</div><h1 id="player-name">Avery Bloom</h1><div class="role-line"><span class="role-dot"></span><span id="job-title">New in town</span></div></div></div>
+        <div class="level-row"><span>LEVEL <b id="level">01</b></span><span><b id="xp-label">0 / 100</b> XP</span></div><div class="xp-track"><i id="xp-fill"></i></div>
+        <div class="wallet-row"><span class="coin">¢</span><div><small>POCKET MONEY</small><strong id="money">$120</strong></div><button id="wallet-info" class="tiny-plus" aria-label="Wallet details">＋</button></div>
+      </section>
+
+      <section class="needs-card glass-card">
+        <div class="section-heading"><div><span class="eyebrow">THE IMPORTANT STUFF</span><h2>Your needs</h2></div><span class="mood-badge" id="mood">Feeling good</span></div>
+        <div class="need-list" id="need-list"></div>
+        <div class="needs-tip"><span>✦</span><span id="needs-tip-text">A little balance goes a long way.</span></div>
+      </section>
+
+      <section class="quest-card glass-card"><div class="quest-icon">✧</div><div><div class="eyebrow">TODAY'S LITTLE GOAL</div><strong id="goal-title">Find your first job</strong><p id="goal-desc">Stop by the studio or café to get started.</p></div><span class="goal-check" id="goal-check">○</span></section>
+    </aside>
+
+    <div class="location-label" id="location-label"><span class="pin">⌖</span><span><b>Maplewood</b><small>A small city with big possibilities</small></span><button id="map-toggle" aria-label="Toggle map">⌗</button></div>
+    <div class="weather-tag"><span id="weather-text">CLEAR SKIES</span><i></i><span>18°</span></div>
+
+    <aside class="right-rail">
+      <section class="clock-card glass-card"><div class="clock-face"><div class="clock-sun" id="clock-sun">☀</div><div class="clock-arc"><i></i></div></div><div class="clock-copy"><span class="eyebrow">A BRAND NEW DAY</span><strong id="daytime-copy">Morning glow</strong><span id="season-copy">Spring · Week 1</span></div></section>
+      <section class="nearby-card glass-card"><div class="nearby-head"><div><span class="eyebrow">AROUND THE BLOCK</span><h2>Places to go</h2></div><span class="nearby-count">04</span></div><div id="place-list" class="place-list"></div><div class="move-hint"><span class="keycap">W</span><span class="keycap">A</span><span class="keycap">S</span><span class="keycap">D</span><span>to wander</span></div></section>
+    </aside>
+
+    <div class="bottom-bar"><div class="selected-place" id="selected-place"><span class="selected-dot"></span><span id="selected-text">Pick a place to explore</span></div><div class="bottom-controls"><button class="speed-button" id="speed-button" title="Change time speed"><span>Ⅱ</span><small>1×</small></button><button class="map-button" id="map-button"><span>⌗</span> <small>MAP</small></button><div class="joystick" id="joystick" aria-label="Touch movement control"><div></div></div></div></div>
+
+    <div class="toast" id="toast" role="status"></div>
+    <div class="modal-backdrop" id="modal-backdrop"><section class="modal glass-card" id="modal" role="dialog" aria-modal="true"></section></div>
+    <div class="help-popover glass-card" id="help-popover"><button class="close-help" id="close-help">×</button><span class="eyebrow">A FEW LITTLE TIPS</span><h3>Make yourself at home.</h3><p>Wander with <b>W A S D</b> or tap a place to visit. Every stop helps a need, earns you a little XP, and moves your story along.</p><p>Watch the clock—work hours are <b>9am–5pm</b>. Click the music note any time for a little synthesized soundtrack.</p><button class="primary-button" id="got-it">Got it, thanks!</button></div>
+  </main>
+  <script type="module" src="./game.js"></script>
+</body>
+</html>
